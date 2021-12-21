@@ -64,6 +64,34 @@ def AddClient(name,password,email):
         finally:
             conn.close()
 
+def saveLoginInfo(userID,sitename,username,password):
+    try:
+        conn = sqlite3.connect(db_file)
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO Logins VALUES (%d,'%s','%s','%s')" % (userID,sitename,username,password))
+        conn.commit()
+
+    except sqlite3.Error as er:
+        print(er)
+    finally:
+        conn.close()
+def isSiteNameUnique(userID,sitename):
+    conn = None
+    try:
+        conn = sqlite3.connect(db_file)
+        cursor = conn.cursor()
+        cursor.execute("SELECT site_name FROM Logins WHERE client_id = %d AND site_name = '%s'" % (userID,sitename))
+        t = cursor.fetchall()
+        conn.close()
+        if(len(t)>0):
+            return False
+        else:
+            return True
+    except Error as e:
+        print(e)
+    finally:
+        if conn:
+            conn.close()
 def isUsernameUnique(username):
     conn = None
     try:
