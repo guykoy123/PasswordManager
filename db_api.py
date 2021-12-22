@@ -3,6 +3,7 @@ import random
 import re
 import CustomExceptions
 import hashlib
+from fuzzywuzzy import fuzz
 
 db_file = "database.db"
 email_regex = "(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)"
@@ -35,7 +36,7 @@ def getClientID(username):
     try:
         conn = sqlite3.connect(db_file)
         cursor  = conn.cursor()
-        cursor.execute("SELECT client_id FROM users WHERE username = '%s'" % username)
+        cursor.execute("SELECT user_id FROM users WHERE username = '%s'" % username)
         id = cursor.fetchall()[0][0]
         conn.close()
         return id
@@ -64,6 +65,44 @@ def AddClient(name,password,email):
         finally:
             conn.close()
 
+def fuzzyMatchSite(userID, name):
+    try:
+        conn = sqlite3.connect(db_file)
+        cursor = conn.cursor()
+        cursor.execute("SELECT site_name FROM Logins WHERE user_id = %d" % (userID))
+        siteNames = cursor.fetchall()
+        site_list =[]
+        for t in siteNames:
+            if(fuzz.ratio(t[0],name)>=60):
+                site_list.append(t[0])
+        conn.close()
+        return site_list
+    except sqlite3.Error as er:
+        print(er)
+    finally:
+        if(conn):
+            conn.close()
+
+def retrieveLoginInfo(userID,name):
+    """
+    mode:
+    True - exact match
+    False - fuzzy match
+    """
+    try:
+        conn = sqlite3.connect(db_file)
+        cursor = conn.cursor()
+        cursor.execute("SELECT username, password FROM Logins WHERE user_id = %d AND site_name = '%s'" % (userID,name))
+        loginInfo = cursor.fetchall()
+        conn.close()
+        if(len(loginInfo)==0):
+            raise CustomExceptions.MatchNotFound("no site")
+        return loginInfo[0]
+    except sqlite3.Error as er:
+        print(er)
+    finally:
+        conn.close()
+
 def saveLoginInfo(userID,sitename,username,password):
     try:
         conn = sqlite3.connect(db_file)
@@ -80,7 +119,7 @@ def isSiteNameUnique(userID,sitename):
     try:
         conn = sqlite3.connect(db_file)
         cursor = conn.cursor()
-        cursor.execute("SELECT site_name FROM Logins WHERE client_id = %d AND site_name = '%s'" % (userID,sitename))
+        cursor.execute("SELECT site_name FROM Logins WHERE user_id = %d AND site_name = '%s'" % (userID,sitename))
         t = cursor.fetchall()
         conn.close()
         if(len(t)>0):
