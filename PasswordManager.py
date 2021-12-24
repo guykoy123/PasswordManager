@@ -6,7 +6,7 @@ def AddUserFromCMD():
     found = False
     while(not found):
         username = input("input a username:\n")
-        if(isUsernameUnique(username)):
+        if(not isUsernameUnique(username)):
             print("username already exists\n")
         else:
             found =True
@@ -20,7 +20,7 @@ def AddUserFromCMD():
         if(not re.match(email_regex,email)):
             print("invalid email address")
         else:
-            if(isEmailUnique(email)):
+            if(not isEmailUnique(email)):
                 print("email already exists\n")
             else:
                 found =True
@@ -52,7 +52,7 @@ def addLoginInfo(userID):
         else:
             print("site name already exists")
 
-def getSimilarSites(userID,name):
+def getSimilarSitesInfo(userID,name):
     print("similar site:\r\n")
     similarSites = fuzzyMatchSite(userID,name)
     if(len(similarSites)>0):
@@ -82,7 +82,49 @@ def getLoginInfo(userID):
         print("%s login info:\r\nusername: %s\r\npassword: %s\r\n" % (name,loginInfo[0],loginInfo[1]))
     except CustomExceptions.MatchNotFound as e:
         print("could not find login info for site: %s\r\n" % (name))
-        getSimilarSites(userID,name)
+        getSimilarSitesInfo(userID,name)
+
+def updateLoginInfo(userID):
+    site = input("what site login info would you like to update:")
+    if(isSiteNameUnique(userID,site)):
+        print("could not find site.\r\nsimilar site names:\r\n")
+        print(fuzzyMatchSite(userID,site))
+    else:
+        action = input("what would you like to change?\r\n 1 - site name\r\n 2 - username\r\n 3 - password\r\n")
+        username,password = retrieveLoginInfo(userID,site)
+        name = site
+        if(action == '1'):
+            name = input("what is the new name? ")
+        elif(action =='2'):
+            username = input("what is the new username? ")
+        elif(action == '3'):
+            password = input("what is the new password? ")
+        else:
+            print("invalid action\r\nreturning to menu\r\n\r\n")
+            return None
+
+        print("new site login info:\r\n name: %s\r\n username: %s\r\n password: %s\r\n" %(name,username,password))
+        answer = input("are you sure you would like to save this info?(y/n)")
+        if(answer.lower() =='y'):
+            deleteLoginInfo(userID,site)
+            saveLoginInfo(userID,name,username,password)
+            print("Login info saved\r\n")
+        else:
+            print("returning to menu\r\n\r\n")
+
+
+def deleteSite(userID):
+    site = input("what site login info would you like to delete:")
+    if(isSiteNameUnique(userID,site)):
+        print("could not find site.\r\nsimilar site names:\r\n")
+        print(fuzzyMatchSite(userID,site))
+    else:
+        answer = input("are you sure you would like to delete the login info for %s? (y/n)" % (site))
+        if(answer.lower() == 'y'):
+            deleteLoginInfo(userID,site)
+            print("delete login info for %s\r\n" % site)
+        else:
+            print("returning to menu\r\n\r\n")
 
 def userSession(username,userID):
     print("\r\nlogged in as "+username +"\r\n")
@@ -93,9 +135,9 @@ def userSession(username,userID):
         elif(action == '2'):
             addLoginInfo(userID)
         elif(action == '3'):
-            print("option has not been implemented yet")
+            updateLoginInfo(userID)
         elif(action == '4'):
-            print("option has not been implemented yet")
+            deleteSite(userID)
         elif(action == '5'):
             a = input("are you sure you want to logout?(y/n) ")
             if(a.lower() == 'y'):
@@ -107,10 +149,8 @@ def userSession(username,userID):
 def main():
     TestDBConnection()
     while (True):
-        action = input("1 - add user \r\n2 - login\r\n3 - quit\r\n")
+        action = input("1 - login \r\n2 - add user\r\n3 - quit\r\n")
         if(action == '1'):
-            AddUserFromCMD()
-        if(action == '2'):
             try:
                 username = input("username: ")
                 password = input("password: ")
@@ -122,6 +162,8 @@ def main():
                 print(e)
             except Exception as e:
                 print("main: " +str(e))
+        elif(action == '2'):
+            AddUserFromCMD()
         if(action == '3'):
             quit()
         else:

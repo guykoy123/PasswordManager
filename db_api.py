@@ -11,12 +11,12 @@ email_regex = "(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)"
 
 def GenerateSaltedHash(str):
     saltValue = hex(random.randint(64,256))
-    return  saltValue+hashlib.sha256((str+saltValue).encode()).hexdigest()
+    return  saltValue[2:]+hashlib.sha256((str+saltValue[2:]).encode()).hexdigest()
 
 
 def CheckPass(password, storedHash):
-    saltValue = storedHash[0:4]
-    if(hashlib.sha256((password+saltValue).encode()).hexdigest()==storedHash[4:]):
+    saltValue = storedHash[0:2]
+    if(hashlib.sha256((password+saltValue).encode()).hexdigest()==storedHash[2:]):
         return True
     return False
 
@@ -72,16 +72,16 @@ def fuzzyMatchSite(userID, name):
         cursor.execute("SELECT site_name FROM Logins WHERE user_id = %d" % (userID))
         siteNames = cursor.fetchall()
         site_list =[]
-        for t in siteNames:
-            if(fuzz.ratio(t[0],name)>=60):
-                site_list.append(t[0])
-        conn.close()
-        return site_list
+
     except sqlite3.Error as er:
         print(er)
     finally:
         if(conn):
             conn.close()
+        for t in siteNames:
+            if(fuzz.ratio(t[0],name)>=60):
+                site_list.append(t[0])
+        return site_list
 
 def retrieveLoginInfo(userID,name):
     """
@@ -94,14 +94,14 @@ def retrieveLoginInfo(userID,name):
         cursor = conn.cursor()
         cursor.execute("SELECT username, password FROM Logins WHERE user_id = %d AND site_name = '%s'" % (userID,name))
         loginInfo = cursor.fetchall()
-        conn.close()
-        if(len(loginInfo)==0):
-            raise CustomExceptions.MatchNotFound("no site")
-        return loginInfo[0]
+
     except sqlite3.Error as er:
         print(er)
     finally:
         conn.close()
+        if(len(loginInfo)==0):
+            raise CustomExceptions.MatchNotFound("no site")
+        return loginInfo[0]
 
 def saveLoginInfo(userID,sitename,username,password):
     try:
@@ -114,6 +114,19 @@ def saveLoginInfo(userID,sitename,username,password):
         print(er)
     finally:
         conn.close()
+
+def deleteLoginInfo(userID,sitename):
+    try:
+        conn = sqlite3.connect(db_file)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM Logins WHERE user_id = %d AND site_name = '%s'" % (userID,sitename))
+        conn.commit()
+
+    except sqlite3.Error as er:
+        print(er)
+    finally:
+        conn.close()
+
 def isSiteNameUnique(userID,sitename):
     conn = None
     try:
@@ -121,16 +134,17 @@ def isSiteNameUnique(userID,sitename):
         cursor = conn.cursor()
         cursor.execute("SELECT site_name FROM Logins WHERE user_id = %d AND site_name = '%s'" % (userID,sitename))
         t = cursor.fetchall()
-        conn.close()
-        if(len(t)>0):
-            return False
-        else:
-            return True
+
     except Error as e:
         print(e)
     finally:
         if conn:
             conn.close()
+        if(len(t)>0):
+            return False
+        else:
+            return True
+
 def isUsernameUnique(username):
     conn = None
     try:
@@ -138,15 +152,16 @@ def isUsernameUnique(username):
         cursor = conn.cursor()
         cursor.execute("SELECT username FROM users WHERE username = '%s'" % (username))
         users = cursor.fetchall()
-        if(len(users)>0):
-            return True
-        else:
-            return False
+
     except sqlite3.Error as e:
         print(e)
     finally:
         if conn:
             conn.close()
+        if(len(users)>0):
+            return False
+        else:
+            return True
 
 def isEmailUnique(email):
         conn = None
@@ -155,15 +170,16 @@ def isEmailUnique(email):
             cursor = conn.cursor()
             cursor.execute("SELECT email FROM users WHERE email = '%s'" % (email))
             emails = cursor.fetchall()
-            if(len(emails)>0):
-                return True
-            else:
-                return False
+
         except sqlite3.Error as e:
             print(e)
         finally:
             if conn:
                 conn.close()
+            if(len(emails)>0):
+                return False
+            else:
+                return True
 
 def TestDBConnection():
         conn = None
