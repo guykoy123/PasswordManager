@@ -1,6 +1,7 @@
 import random
 from db_api import *
 import CustomExceptions
+from aes import *
 
 def AddUserFromCMD():
     found = False
@@ -12,7 +13,7 @@ def AddUserFromCMD():
             found =True
 
 
-    password = input("input password:\n")
+    password = input("input password:\n") #TODO: add password restrictions to make it harder to crack
 
     found = False
     while(not found):
@@ -35,7 +36,10 @@ def addLoginInfo(userID):
             password = input("password:\r\n")
             answer = input("site name: %s\r\nusername: %s\r\npassword:%s\r\nare you sure you want to save?(y/n)\r\n" % (site,username,password))
             if(answer.lower() =='y'):
-                saveLoginInfo(userID,site,username,password)
+                cipher = AESCipher(str(userID))
+                enc_username = cipher.encrypt(username)
+                enc_password = cipher.encrypt(password)
+                saveLoginInfo(userID,site,enc_username,enc_password)
                 print("saved login info.\r\nreturning to menu\r\n")
                 break
             elif(answer.lower()=='n'):
@@ -68,7 +72,8 @@ def getSimilarSitesInfo(userID,name):
                 i = int(action)
                 print("retrieving login info for %s:\r\n" % (similarSites[i-1]))
                 loginInfo = retrieveLoginInfo(userID,similarSites[i-1])
-                print("nusername: %s\r\npassword: %s\r\n" % (loginInfo[0],loginInfo[1]))
+                cipher = AESCipher(str(userID))
+                print("nusername: %s\r\npassword: %s\r\n" % (cipher.decrypt(loginInfo[0]), cipher.decrypt(loginInfo[1])))
             except Exception as e:
                 print(e)
                 print("invalid action, returning to menu\r\n\r\n")
@@ -79,7 +84,8 @@ def getLoginInfo(userID):
     name = input("which site do you want to see?\r\n")
     try:
         loginInfo = retrieveLoginInfo(userID,name)
-        print("%s login info:\r\nusername: %s\r\npassword: %s\r\n" % (name,loginInfo[0],loginInfo[1]))
+        cipher = AESCipher(str(userID))
+        print("%s login info:\r\nusername: %s\r\npassword: %s\r\n" % (name,cipher.decrypt(loginInfo[0]),cipher.decrypt(loginInfo[1])))
     except CustomExceptions.MatchNotFound as e:
         print("could not find login info for site: %s\r\n" % (name))
         getSimilarSitesInfo(userID,name)
@@ -91,7 +97,10 @@ def updateLoginInfo(userID):
         print(fuzzyMatchSite(userID,site))
     else:
         action = input("what would you like to change?\r\n 1 - site name\r\n 2 - username\r\n 3 - password\r\n")
-        username,password = retrieveLoginInfo(userID,site)
+        cipher = AESCipher(str(userID))
+        enc = retrieveLoginInfo(userID,site)
+        username = cipher.decrypt(enc[0])
+        password = cipher.decrypt(enc[1])
         name = site
         if(action == '1'):
             name = input("what is the new name? ")
@@ -107,7 +116,7 @@ def updateLoginInfo(userID):
         answer = input("are you sure you would like to save this info?(y/n)")
         if(answer.lower() =='y'):
             deleteLoginInfo(userID,site)
-            saveLoginInfo(userID,name,username,password)
+            saveLoginInfo(userID,name,cipher.encrypt(username),cipher.encrypt(password))
             print("Login info saved\r\n")
         else:
             print("returning to menu\r\n\r\n")
@@ -141,10 +150,10 @@ def userSession(username,userID):
         elif(action == '5'):
             a = input("are you sure you want to logout?(y/n) ")
             if(a.lower() == 'y'):
-                print("loggin out")
+                print("logging out\r\n\r\n\r\n")
                 main()
         else:
-            print("invalid action")
+            print("invalid action - usersession")
 
 def main():
     TestDBConnection()
@@ -164,10 +173,10 @@ def main():
                 print("main: " +str(e))
         elif(action == '2'):
             AddUserFromCMD()
-        if(action == '3'):
+        elif(action == '3'):
             quit()
         else:
-            print("invalid option\r\n")
+            print("invalid option - main\r\n")
 
 
 if __name__ == "__main__":
