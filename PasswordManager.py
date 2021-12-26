@@ -2,6 +2,7 @@ import random
 from db_api import *
 import CustomExceptions
 from aes import *
+import string
 
 def AddUserFromCMD():
     found = False
@@ -29,32 +30,52 @@ def AddUserFromCMD():
     AddClient(username,GenerateSaltedHash(password),email)
 
 def addLoginInfo(userID):
+    """
+    get site name, username and password and save to database
+    site name needs to be unique
+    can generate password based on given parameters (special characters, capital letters and digits)
+    encrypts username and password before saving to database
+    """
+    got_info=False
     while True:
         site = input("name of the site:\r\n")
         if(isSiteNameUnique(userID,site)):
             username = input("username:\r\n")
-            password = input("password:\r\n")
-            answer = input("site name: %s\r\nusername: %s\r\npassword:%s\r\nare you sure you want to save?(y/n)\r\n" % (site,username,password))
-            if(answer.lower() =='y'):
-                cipher = AESCipher(str(userID))
-                enc_username = cipher.encrypt(username)
-                enc_password = cipher.encrypt(password)
-                saveLoginInfo(userID,site,enc_username,enc_password)
-                print("saved login info.\r\nreturning to menu\r\n")
+            action = input("would you like to generate a random password?(y/n) ")
+            if(action =='y'):
+                try:
+                    length = int(input("how many characters should the password have? "))
+                    args = input("enter arguments for special characters (c - captial letters, n - numbers, s - special characters)\r\n")
+                    password = generatePassword(length,args)
+                    got_info=True
+                    break
+                except ValueError as e:
+                    print("please input a number between 4 and 64\r\n")
+            else:
+                password = input("password:\r\n")
+                got_info=True
                 break
-            elif(answer.lower()=='n'):
-                answer = input("1 - input again\r\n2 - go back to menu\r\n")
-                if(answer == '1'):
-                    pass
-                elif(answer =='2'):
-                    print("returning to menu\r\n\r\n")
-                    break
-                else:
-                    print("invalid answer")
-                    print("returning to menu\r\n\r\n")
-                    break
         else:
             print("site name already exists")
+
+    if(not got_info): return
+
+    answer = input("site name: %s\r\nusername: %s\r\npassword:%s\r\nare you sure you want to save?(y/n)\r\n" % (site,username,password))
+    if(answer.lower() =='y'):
+        cipher = AESCipher(str(userID))
+        enc_username = cipher.encrypt(username)
+        enc_password = cipher.encrypt(password)
+        saveLoginInfo(userID,site,enc_username,enc_password)
+        print("saved login info.\r\nreturning to menu\r\n")
+    elif(answer.lower()=='n'):
+        answer = input("1 - input again\r\n2 - go back to menu\r\n")
+        if(answer == '1'):
+            addLoginInfo(userID)
+        elif(answer =='2'):
+            print("returning to menu\r\n\r\n")
+        else:
+            print("invalid answer")
+            print("returning to menu\r\n\r\n")
 
 def getSimilarSitesInfo(userID,name):
     print("similar site:\r\n")
@@ -107,7 +128,19 @@ def updateLoginInfo(userID):
         elif(action =='2'):
             username = input("what is the new username? ")
         elif(action == '3'):
-            password = input("what is the new password? ")
+            action = input("would you like to generate a new password?(y/n) ")
+            if(action == 'y'):
+                got_pass = False
+                while not got_pass:
+                    try:
+                        length = int(input("how many characters should the password have? "))
+                        args = input("enter arguments for special characters (c - captial letters, n - numbers, s - special characters)\r\n")
+                        password = generatePassword(length,args)
+                        got_pass = True
+                    except ValueError as e:
+                        print("please input a number between 4 and 64\r\n")
+            else:
+                password = input("what is the new password? ")
         else:
             print("invalid action\r\nreturning to menu\r\n\r\n")
             return None
@@ -120,6 +153,27 @@ def updateLoginInfo(userID):
             print("Login info saved\r\n")
         else:
             print("returning to menu\r\n\r\n")
+
+def generatePassword(length,args):
+    """
+    c - capital letters
+    s - special symbols
+    n - numbers
+    """
+    if(length<4 or length>64):
+        raise ValueError("password length must be between 4 and 64")
+
+    characters = string.ascii_lowercase
+    if('c' in args):
+        characters += string.ascii_uppercase
+    if('s' in args):
+        characters+=string.punctuation
+    if('n' in args):
+        characters += string.digits
+
+    password = ''.join(random.choice(characters) for i in range(length))
+
+    return password
 
 
 def deleteSite(userID):
