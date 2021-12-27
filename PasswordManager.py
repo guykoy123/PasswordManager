@@ -60,6 +60,9 @@ def generatePassword(userID,length,args):
     return password
 
 def isPasswordUnique(userID,password):
+    """
+    makes sure that the password is unique and not used in any other site
+    """
     encrypted_passwords = getUserPasswords(userID)
     if(len(encrypted_passwords) == 0 ): #length of zero means there are no passwords so it is definatly unique
         return True
@@ -81,38 +84,39 @@ def addLoginInfo(userID):
     can generate password based on given parameters (special characters, capital letters and digits)
     encrypts username and password before saving to database
     """
+    #get the login info
     got_info=False
-    while True:
+    while not got_info:
         site = input("name of the site:\r\n")
-        if(isSiteNameUnique(userID,site)):
+        if(not isSiteNameUnique(userID,site)):
+            print("site name already exists")
+        else:
             username = input("username:\r\n")
             action = input("would you like to generate a random password?(y/n) ")
             if(action =='y'):
-                try:
+                try: #generate random password
                     length = int(input("how many characters should the password have? "))
                     args = input("enter arguments for special characters (c - captial letters, n - numbers, s - special characters)\r\n")
                     password = generatePassword(userID,length,args)
                     got_info=True
-                    break
                 except ValueError as e:
                     print("please input a number between 4 and 64\r\n")
             else:
                 password = input("password:\r\n")
                 got_info=True
-                break
-        else:
-            print("site name already exists")
 
     if(not got_info): return
 
+    #user confirmation to save the info
     answer = input("site name: %s\r\nusername: %s\r\npassword:%s\r\nare you sure you want to save?(y/n)\r\n" % (site,username,password))
     if(answer.lower() =='y'):
+        #encrypt password and username
         cipher = AESCipher(str(userID))
         enc_username = cipher.encrypt(username)
         enc_password = cipher.encrypt(password)
         saveLoginInfo(userID,site,enc_username,enc_password)
         print("saved login info.\r\nreturning to menu\r\n")
-    elif(answer.lower()=='n'):
+    elif(answer.lower()=='n'): #if user as not confirmed saving can redo info input or go back to main menu
         answer = input("1 - input again\r\n2 - go back to menu\r\n")
         if(answer == '1'):
             addLoginInfo(userID)
@@ -123,6 +127,10 @@ def addLoginInfo(userID):
         print("returning to menu\r\n\r\n")
 
 def getLoginInfo(userID):
+    """
+    retrieve login info based on site name
+    if site name is not in database returns list of similar site names
+    """
     name = input("which site do you want to see?\r\n")
     try:
         loginInfo = retrieveLoginInfo(userID,name)
@@ -130,21 +138,32 @@ def getLoginInfo(userID):
         print("%s login info:\r\nusername: %s\r\npassword: %s\r\n" % (name,cipher.decrypt(loginInfo[0]),cipher.decrypt(loginInfo[1])))
     except CustomExceptions.MatchNotFound as e:
         print("could not find login info for site: %s" % (name))
-        print("Similar site names:")
-        print(fuzzyMatchSite(userID,name))
+        sites = fuzzyMatchSite(userID,name)
+        if(len(sites) == 0):
+            print("Could not find similar site names")
+        else:
+            print("Similar site names:")
+            print(sites)
+
 
 def updateLoginInfo(userID):
+    """
+    user can update one of the value fields of the site login info or generate a new password
+    """
     site = input("what site login info would you like to update:")
     if(isSiteNameUnique(userID,site)):
         print("could not find site.\r\nsimilar site names:\r\n")
         print(fuzzyMatchSite(userID,site))
     else:
         action = input("what would you like to change?\r\n 1 - site name\r\n 2 - username\r\n 3 - password\r\n")
+        #get plain text versions of username and password
         cipher = AESCipher(str(userID))
         enc = retrieveLoginInfo(userID,site)
         username = cipher.decrypt(enc[0])
         password = cipher.decrypt(enc[1])
         name = site
+
+        #check user choice to update the relevent field
         if(action == '1'):
             name = input("what is the new name? ")
         elif(action =='2'):
@@ -171,7 +190,7 @@ def updateLoginInfo(userID):
             return None
 
         print("new site login info:\r\n name: %s\r\n username: %s\r\n password: %s\r\n" %(name,username,password))
-        answer = input("are you sure you would like to save this info?(y/n)")
+        answer = input("are you sure you would like to save this info?(y/n)") #user confirmation for saving new info
         if(answer.lower() =='y'):
             deleteLoginInfo(userID,site)
             saveLoginInfo(userID,name,cipher.encrypt(username),cipher.encrypt(password))
