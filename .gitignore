@@ -1,2 +1,12 @@
+#ignore compiled python files
 \__pycache__
 /__pycache__
+
+
+#ignore all db files excpet database.db (its a test file)
+*.db
+!database.db
+
+
+#ignore test file
+shit.py
