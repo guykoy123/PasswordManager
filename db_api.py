@@ -83,12 +83,21 @@ def fuzzyMatchSite(userID, name):
                 site_list.append(t[0])
         return site_list
 
+def getUserPasswords(userID):
+    try:
+        conn = sqlite3.connect(db_file)
+        cursor = conn.cursor()
+        cursor.execute("SELECT password FROM Logins WHERE user_id = %d" % (userID))
+        passwords = cursor.fetchall()
+
+    except sqlite3.Error as er:
+        print(er)
+    finally:
+        conn.close()
+        return passwords
+
+
 def retrieveLoginInfo(userID,name):
-    """
-    mode:
-    True - exact match
-    False - fuzzy match
-    """
     try:
         conn = sqlite3.connect(db_file)
         cursor = conn.cursor()

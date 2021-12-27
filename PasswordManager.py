@@ -29,6 +29,51 @@ def AddUserFromCMD():
 
     AddClient(username,GenerateSaltedHash(password),email)
 
+def generatePassword(userID,length,args):
+    """
+    c - capital letters
+    s - special symbols
+    n - numbers
+
+    automaticly ignores anything else that is passed into the function
+    """
+    if(length<4 or length>64):
+        raise ValueError("password length must be between 4 and 64")
+
+    generated = False
+    while not generated:
+        #add character to make sure it is used in the password at least once
+        characters = string.ascii_lowercase
+        password += random.choice(characters)
+        if('c' in args):
+            characters += string.ascii_uppercase
+            password += random.choice(characters)
+        if('s' in args):
+            characters+=string.punctuation
+            password += random.choice(characters)
+        if('n' in args):
+            characters += string.digits
+            password += random.choice(characters)
+
+        password = ''.join(random.choice(characters) for i in range(length-len(password)))
+        generated = isPasswordUnique(userID,password)
+    return password
+
+def isPasswordUnique(userID,password):
+    encrypted_passwords = getUserPasswords(userID)
+    if(len(encrypted_passwords) == 0 ): #length of zero means there are no passwords so it is definatly unique
+        return True
+
+    cipher = AESCipher(str(userID))
+    plain_passwords =[]
+    for enc_password in encrypted_passwords:
+        plain_passwords.append(cipher.decrypt(enc_password))
+
+    if(password in plain_passwords):
+        return False
+    return True
+
+
 def addLoginInfo(userID):
     """
     get site name, username and password and save to database
@@ -46,7 +91,7 @@ def addLoginInfo(userID):
                 try:
                     length = int(input("how many characters should the password have? "))
                     args = input("enter arguments for special characters (c - captial letters, n - numbers, s - special characters)\r\n")
-                    password = generatePassword(length,args)
+                    password = generatePassword(userID,length,args)
                     got_info=True
                     break
                 except ValueError as e:
@@ -73,33 +118,9 @@ def addLoginInfo(userID):
             addLoginInfo(userID)
         elif(answer =='2'):
             print("returning to menu\r\n\r\n")
-        else:
-            print("invalid answer")
-            print("returning to menu\r\n\r\n")
-
-def getSimilarSitesInfo(userID,name):
-    print("similar site:\r\n")
-    similarSites = fuzzyMatchSite(userID,name)
-    if(len(similarSites)>0):
-        i=1
-        for s in similarSites:
-            print("%d - %s\r\n" % (i,s))
-            i+=1
-        action = input("would you like to see one of these site? (if not press b)\r\n")
-        if(action == 'b'):
-            print("returning to menu\r\n\r\n")
-        else:
-            try:
-                i = int(action)
-                print("retrieving login info for %s:\r\n" % (similarSites[i-1]))
-                loginInfo = retrieveLoginInfo(userID,similarSites[i-1])
-                cipher = AESCipher(str(userID))
-                print("nusername: %s\r\npassword: %s\r\n" % (cipher.decrypt(loginInfo[0]), cipher.decrypt(loginInfo[1])))
-            except Exception as e:
-                print(e)
-                print("invalid action, returning to menu\r\n\r\n")
     else:
-        print("could not find similar sites\r\n")
+        print("invalid answer")
+        print("returning to menu\r\n\r\n")
 
 def getLoginInfo(userID):
     name = input("which site do you want to see?\r\n")
@@ -108,8 +129,9 @@ def getLoginInfo(userID):
         cipher = AESCipher(str(userID))
         print("%s login info:\r\nusername: %s\r\npassword: %s\r\n" % (name,cipher.decrypt(loginInfo[0]),cipher.decrypt(loginInfo[1])))
     except CustomExceptions.MatchNotFound as e:
-        print("could not find login info for site: %s\r\n" % (name))
-        getSimilarSitesInfo(userID,name)
+        print("could not find login info for site: %s" % (name))
+        print("Similar site names:")
+        print(fuzzyMatchSite(userID,name))
 
 def updateLoginInfo(userID):
     site = input("what site login info would you like to update:")
@@ -129,18 +151,21 @@ def updateLoginInfo(userID):
             username = input("what is the new username? ")
         elif(action == '3'):
             action = input("would you like to generate a new password?(y/n) ")
-            if(action == 'y'):
+            if(action.lower() == 'y'):
                 got_pass = False
                 while not got_pass:
                     try:
                         length = int(input("how many characters should the password have? "))
                         args = input("enter arguments for special characters (c - captial letters, n - numbers, s - special characters)\r\n")
-                        password = generatePassword(length,args)
+                        password = generatePassword(userID,length,args)
                         got_pass = True
                     except ValueError as e:
                         print("please input a number between 4 and 64\r\n")
-            else:
+            elif(action.lower() == 'n'):
                 password = input("what is the new password? ")
+            else:
+                print("invalid action\r\nreturning to menu\r\n\r\n")
+                return None
         else:
             print("invalid action\r\nreturning to menu\r\n\r\n")
             return None
@@ -154,26 +179,7 @@ def updateLoginInfo(userID):
         else:
             print("returning to menu\r\n\r\n")
 
-def generatePassword(length,args):
-    """
-    c - capital letters
-    s - special symbols
-    n - numbers
-    """
-    if(length<4 or length>64):
-        raise ValueError("password length must be between 4 and 64")
 
-    characters = string.ascii_lowercase
-    if('c' in args):
-        characters += string.ascii_uppercase
-    if('s' in args):
-        characters+=string.punctuation
-    if('n' in args):
-        characters += string.digits
-
-    password = ''.join(random.choice(characters) for i in range(length))
-
-    return password
 
 
 def deleteSite(userID):
